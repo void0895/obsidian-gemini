@@ -292,7 +292,7 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('API Key')
-			.setDesc('Your Google Gemini API key. Get one free at https://aistudio.google.com/apikey')
+			.setDesc('Your Groq API key. Create one at https://console.groq.com/keys')
 			.addText((text) => {
 				text
 					.setPlaceholder('Enter your API Key')
@@ -309,11 +309,11 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName('Model Versions')
 			.setDesc(
-				'ℹ️ Only Gemini 2.5+ models are shown. Older model versions have been deprecated by Google and are no longer supported.'
+				'ℹ️ Groq model list is provider-driven. Deprecated or unavailable models are automatically filtered out.'
 			)
 			.addButton((button) =>
 				button.setButtonText('Learn More').onClick(() => {
-					window.open('https://ai.google.dev/gemini-api/docs/models/gemini');
+					window.open('https://console.groq.com/docs/models');
 				})
 			);
 
@@ -502,7 +502,7 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 
 			new Setting(containerEl)
 				.setName('Enable dynamic model discovery')
-				.setDesc("Automatically discover and update available Gemini models from Google's API")
+				.setDesc('Automatically discover and update available Groq models from Groq API')
 				.addToggle((toggle) =>
 					toggle.setValue(this.plugin.settings.modelDiscovery.enabled).onChange(async (value) => {
 						this.plugin.settings.modelDiscovery.enabled = value;
@@ -545,7 +545,7 @@ export default class ObsidianGeminiSettingTab extends PluginSettingTab {
 				statusSetting.addButton((button) =>
 					button
 						.setButtonText('Refresh models')
-						.setTooltip('Manually refresh the model list from Google API')
+						.setTooltip('Manually refresh the model list from Groq API')
 						.onClick(async () => {
 							button.setButtonText('Refreshing...');
 							button.setDisabled(true);

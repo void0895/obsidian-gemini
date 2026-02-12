@@ -8,24 +8,17 @@ export interface GeminiModel {
 }
 
 export const DEFAULT_GEMINI_MODELS: GeminiModel[] = [
-	{ value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', defaultForRoles: ['chat'] },
-	{ value: 'gemini-flash-latest', label: 'Gemini Flash Latest', defaultForRoles: ['summary', 'rewrite'] },
-	{ value: 'gemini-flash-lite-latest', label: 'Gemini Flash Lite Latest', defaultForRoles: ['completions'] },
-	{ value: 'gemini-3-pro-preview', label: 'Gemini 3 Pro Preview' },
-	{
-		value: 'gemini-2.5-flash-image',
-		label: 'Gemini 2.5 Flash Image',
-		defaultForRoles: ['image'],
-		supportsImageGeneration: true,
-	},
-	{ value: 'gemini-3-pro-image-preview', label: 'Gemini 3 Pro Image Preview', supportsImageGeneration: true },
+	{ value: 'compound', label: 'Compound', defaultForRoles: ['chat', 'rewrite'] },
+	{ value: 'compound-mini', label: 'Compound Mini', defaultForRoles: ['summary'] },
+	{ value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile', defaultForRoles: ['completions'] },
+	{ value: 'openai/gpt-oss-120b', label: 'GPT OSS 120B' },
+	{ value: 'moonshotai/kimi-k2-instruct-0905', label: 'Kimi K2 Instruct 0905' },
+	{ value: 'deepseek-r1-distill-llama-70b', label: 'DeepSeek R1 Distill Llama 70B' },
+	{ value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant' },
 ];
 
 export let GEMINI_MODELS: GeminiModel[] = [...DEFAULT_GEMINI_MODELS];
 
-/**
- * Set the models list (used by ModelManager for dynamic updates)
- */
 export function setGeminiModels(newModels: GeminiModel[]): void {
 	GEMINI_MODELS.length = 0;
 	GEMINI_MODELS.push(...newModels);
@@ -36,22 +29,14 @@ export function getDefaultModelForRole(role: ModelRole): string {
 	if (modelForRole) {
 		return modelForRole.value;
 	}
-
-	// If no specific default is found in GEMINI_MODELS, and assuming GEMINI_MODELS is never empty,
-	// fall back to the first model in the list.
 	if (GEMINI_MODELS.length > 0) {
-		// Note: No default model specified for role, falling back to first model in GEMINI_MODELS
 		return GEMINI_MODELS[0].value;
 	}
-
-	// This case should ideally be unreachable if GEMINI_MODELS is guaranteed to be non-empty.
-	// Adding a safeguard for an extremely unlikely scenario.
-	// This indicates a serious configuration problem.
 	throw new Error('CRITICAL: GEMINI_MODELS array is empty. Please configure available models.');
 }
 
 export interface ModelUpdateResult {
-	updatedSettings: any; // Ideally, this would be ObsidianGeminiSettings, but that would create a circular dependency
+	updatedSettings: any;
 	settingsChanged: boolean;
 	changedSettingsInfo: string[];
 }
@@ -62,63 +47,31 @@ export function getUpdatedModelSettings(currentSettings: any): ModelUpdateResult
 	const changedSettingsInfo: string[] = [];
 	const newSettings = { ...currentSettings };
 
-	// Helper function to check if a model needs updating
-	const needsUpdate = (modelName: string) => {
-		// Update if model is empty/undefined OR if the model is no longer available
-		return !modelName || !availableModelValues.has(modelName);
-	};
+	const needsUpdate = (modelName: string) => !modelName || !availableModelValues.has(modelName);
 
-	// Check chat model - only update if truly needed
 	if (needsUpdate(newSettings.chatModelName)) {
-		const newDefaultChat = getDefaultModelForRole('chat');
-		if (newDefaultChat) {
-			changedSettingsInfo.push(
-				`Chat model: '${newSettings.chatModelName}' -> '${newDefaultChat}' (legacy model update)`
-			);
-			newSettings.chatModelName = newDefaultChat;
-			settingsChanged = true;
-		}
+		const next = getDefaultModelForRole('chat');
+		changedSettingsInfo.push(`Chat model: '${newSettings.chatModelName}' -> '${next}' (model update)`);
+		newSettings.chatModelName = next;
+		settingsChanged = true;
 	}
-
-	// Check summary model - only update if truly needed
 	if (needsUpdate(newSettings.summaryModelName)) {
-		const newDefaultSummary = getDefaultModelForRole('summary');
-		if (newDefaultSummary) {
-			changedSettingsInfo.push(
-				`Summary model: '${newSettings.summaryModelName}' -> '${newDefaultSummary}' (legacy model update)`
-			);
-			newSettings.summaryModelName = newDefaultSummary;
-			settingsChanged = true;
-		}
+		const next = getDefaultModelForRole('summary');
+		changedSettingsInfo.push(`Summary model: '${newSettings.summaryModelName}' -> '${next}' (model update)`);
+		newSettings.summaryModelName = next;
+		settingsChanged = true;
 	}
-
-	// Check completions model - only update if truly needed
 	if (needsUpdate(newSettings.completionsModelName)) {
-		const newDefaultCompletions = getDefaultModelForRole('completions');
-		if (newDefaultCompletions) {
-			changedSettingsInfo.push(
-				`Completions model: '${newSettings.completionsModelName}' -> '${newDefaultCompletions}' (legacy model update)`
-			);
-			newSettings.completionsModelName = newDefaultCompletions;
-			settingsChanged = true;
-		}
+		const next = getDefaultModelForRole('completions');
+		changedSettingsInfo.push(`Completions model: '${newSettings.completionsModelName}' -> '${next}' (model update)`);
+		newSettings.completionsModelName = next;
+		settingsChanged = true;
+	}
+	if (newSettings.imageModelName && needsUpdate(newSettings.imageModelName)) {
+		changedSettingsInfo.push(`Image model '${newSettings.imageModelName}' is not available on Groq and was cleared.`);
+		newSettings.imageModelName = '';
+		settingsChanged = true;
 	}
 
-	// Check image model - only update if truly needed
-	if (needsUpdate(newSettings.imageModelName)) {
-		const newDefaultImage = getDefaultModelForRole('image');
-		if (newDefaultImage) {
-			changedSettingsInfo.push(
-				`Image model: '${newSettings.imageModelName}' -> '${newDefaultImage}' (legacy model update)`
-			);
-			newSettings.imageModelName = newDefaultImage;
-			settingsChanged = true;
-		}
-	}
-
-	return {
-		updatedSettings: newSettings,
-		settingsChanged,
-		changedSettingsInfo,
-	};
+	return { updatedSettings: newSettings, settingsChanged, changedSettingsInfo };
 }

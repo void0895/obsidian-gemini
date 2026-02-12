@@ -18,8 +18,8 @@ This document provides a comprehensive reference for all Obsidian Gemini Scribe 
 - **Setting**: `apiKey`
 - **Type**: String
 - **Required**: Yes
-- **Description**: Your Google AI API key for accessing Gemini models
-- **How to obtain**: Visit [Google AI Studio](https://aistudio.google.com/apikey)
+- **Description**: Your Groq API key for accessing chat and compound models
+- **How to obtain**: Visit [Groq Console](https://console.groq.com/keys)
 
 ### Your Name
 
@@ -59,26 +59,26 @@ This document provides a comprehensive reference for all Obsidian Gemini Scribe 
 
 ## Model Configuration
 
-All models are selected from available Gemini models. The plugin supports dynamic model discovery to automatically fetch the latest models from Google's API.
+All models are selected from available Groq models. The plugin supports dynamic model discovery to automatically fetch the latest models from Groq's API.
 
 ### Chat Model
 
 - **Setting**: `chatModelName`
 - **Type**: String
-- **Default**: `gemini-2.5-pro`
+- **Default**: `compound`
 - **Description**: Model used for agent chat conversations
 - **Available Models**:
-  - `gemini-2.5-pro` - Gemini 2.5 Pro (most capable, default for chat)
-  - `gemini-flash-latest` - Gemini Flash Latest (fast and efficient)
-  - `gemini-flash-lite-latest` - Gemini Flash Lite Latest (lightweight)
-  - `gemini-3-pro-preview` - Gemini 3 Pro Preview (experimental)
-- **Note**: Model discovery automatically fetches the latest available models from Google's API
+  - `compound` - Compound (best for multi-step/research workflows)
+  - `compound-mini` - Compound Mini (faster and cheaper)
+  - `llama-3.3-70b-versatile` - Strong general-purpose model
+  - `openai/gpt-oss-120b` - High-capability open model
+- **Note**: Model discovery automatically fetches the latest available models from Groq's API
 
 ### Summary Model
 
 - **Setting**: `summaryModelName`
 - **Type**: String
-- **Default**: `gemini-flash-latest`
+- **Default**: `compound-mini`
 - **Description**: Model used for document summarization and selection-based text rewriting
 - **Used by**: Summarize Active File command, Rewrite text with AI command
 
@@ -86,7 +86,7 @@ All models are selected from available Gemini models. The plugin supports dynami
 
 - **Setting**: `completionsModelName`
 - **Type**: String
-- **Default**: `gemini-flash-lite-latest`
+- **Default**: `llama-3.3-70b-versatile`
 - **Description**: Model used for IDE-style auto-completions
 - **Note**: Completions must be enabled via command palette
 
@@ -176,14 +176,14 @@ Advanced settings for developers and power users. Access by clicking "Show Advan
 
 ### Model Discovery
 
-Dynamic model discovery automatically fetches the latest available Gemini models and their capabilities from Google's API.
+Dynamic model discovery automatically fetches the latest available Groq models and their capabilities from Groq's API.
 
 #### Enable Model Discovery
 
 - **Setting**: `modelDiscovery.enabled`
 - **Type**: Boolean
 - **Default**: `true`
-- **Description**: Automatically discover and update available Gemini models
+- **Description**: Automatically discover and update available Groq models
 
 #### Auto-Update Interval
 

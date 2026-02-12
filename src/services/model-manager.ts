@@ -210,128 +210,42 @@ export class ModelManager {
 	}
 
 	/**
-	 * Filter models to only include Gemini 2.5 or higher
-	 * Older versions have been deprecated by Google and are no longer supported
+	 * Filter models for Groq provider compatibility.
 	 *
-	 * @param models - Array of models to filter
-	 * @param imageModelsOnly - If true, return only image generation models. If false, exclude image generation models.
+	 * - Excludes obviously non-chat/non-text IDs (audio/speech/moderation/embedding)
+	 * - Separates image models when requested
+	 * - Keeps general/chat models regardless of provider family
 	 */
 	private filterModelsForVersion(models: GeminiModel[], imageModelsOnly: boolean): GeminiModel[] {
 		this.plugin.logger.debug(`Filtering ${models.length} models. imageModelsOnly=${imageModelsOnly}`);
 
-		// Helper to check if a stable version exists for a preview model
-		const hasStableVersion = (previewModelValue: string, allModels: GeminiModel[]): boolean => {
-			// Pattern: gemini-1.5-pro-preview-04-09 -> stable: gemini-1.5-pro
-			// Pattern: gemini-2.5-flash-preview-09-2025 -> stable: gemini-2.5-flash
-			// Pattern: gemini-2.5-flash-image-preview -> stable: gemini-2.5-flash-image
-			const baseNameMatch = previewModelValue.match(
-				/^(gemini-[\d.]+(?:-pro|-flash|-flash-lite)(?:-image)?)(?:-preview|-exp)/
-			);
-			if (!baseNameMatch) return false;
-
-			const baseName = baseNameMatch[1];
-			// Check if the base name exists in the list (exact match)
-			return allModels.some((m) => m.value === baseName);
-		};
-
 		return models.filter((model) => {
 			const modelValue = model.value.toLowerCase();
 
-			if (modelValue.includes('nano') || modelValue.includes('banana')) {
-				// Allow Nano Banana if it's an image model and we are looking for image models
-				const isImageModel = model.supportsImageGeneration || modelValue.includes('image');
-				if (imageModelsOnly && isImageModel) {
-					this.plugin.logger.debug(`Model allowed (Nano Banana Image): ${model.value}`);
-					return true;
-				} else {
-					this.plugin.logger.debug(`Model excluded (nano/banana): ${model.value}`);
-					return false;
-				}
-			}
-
-			// 1. Exclude known non-generative/specialized types
+			// Exclude specialized non-chat model families
 			if (
 				modelValue.includes('embedding') ||
-				modelValue.includes('aqa') ||
-				modelValue.includes('learnlm') ||
-				modelValue.includes('gemma') // Exclude Gemma for now as we focus on Gemini
+				modelValue.includes('whisper') ||
+				modelValue.includes('tts') ||
+				modelValue.includes('transcribe') ||
+				modelValue.includes('moderation') ||
+				modelValue.includes('guard') ||
+				modelValue.includes('speech')
 			) {
 				return false;
 			}
 
-			// 2. Exclude Gemini 2.0 entirely (including thinking models)
-			if (modelValue.includes('gemini-2.0')) {
-				return false;
-			}
+			const isImageModel =
+				model.supportsImageGeneration ||
+				modelValue.includes('image') ||
+				modelValue.includes('vision') ||
+				modelValue.includes('flux');
 
-			// 3. Exclude Imagen, Veo, TTS, and Computer Use models
-			// Note: We need to exclude 'imagen' specifically, not just 'image'
-			if (modelValue.includes('imagen-') || modelValue.startsWith('imagen')) {
-				this.plugin.logger.debug(`Model excluded (imagen): ${model.value}`);
-				return false;
-			}
-			if (modelValue.includes('veo')) {
-				this.plugin.logger.debug(`Model excluded (veo): ${model.value}`);
-				return false;
-			}
-			if (modelValue.includes('tts')) {
-				this.plugin.logger.debug(`Model excluded (tts): ${model.value}`);
-				return false;
-			}
-			if (modelValue.includes('computer')) {
-				this.plugin.logger.debug(`Model excluded (computer): ${model.value}`);
-				return false;
-			}
-
-			// 4. Filter by image generation capability
 			if (imageModelsOnly) {
-				// Must be an image model
-				// Check for "image" in name (e.g. gemini-2.5-flash-image) OR supportsImageGeneration flag
-				// We already excluded imagen and veo above.
-				const isImageModel = model.supportsImageGeneration || modelValue.includes('image');
-				if (!isImageModel) {
-					return false;
-				}
-			} else {
-				// Text/Chat models
-				// Exclude image-only models
-				if (model.supportsImageGeneration || modelValue.includes('image')) {
-					return false;
-				}
+				return isImageModel;
 			}
 
-			// 5. Clean up dated previews if stable version exists
-			// Apply to both text and image models
-			if (modelValue.includes('preview') || modelValue.includes('exp')) {
-				if (hasStableVersion(modelValue, models)) {
-					this.plugin.logger.debug(`Model filtered out (redundant preview): ${model.value}`);
-					return false;
-				}
-			}
-
-			// 6. Version Check (for both text and image)
-			// We want Gemini 2.5+, Gemini 3+, and "latest" aliases.
-
-			// Check for "latest" aliases
-			if (modelValue.includes('latest')) {
-				return true;
-			}
-
-			// Check for Gemini 3+
-			if (modelValue.includes('gemini-3')) {
-				return true;
-			}
-
-			// Check for Gemini 2.5+
-			if (modelValue.includes('gemini-2.5')) {
-				return true;
-			}
-
-			// Log why this model was filtered out
-			this.plugin.logger.debug(
-				`Model filtered out (failed version check): ${model.value} (imageModelsOnly=${imageModelsOnly})`
-			);
-			return false;
+			return !isImageModel;
 		});
 	}
 

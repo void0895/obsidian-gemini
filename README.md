@@ -1,8 +1,8 @@
 # Gemini Scribe for Obsidian
 
-Gemini Scribe is an Obsidian plugin that integrates Google's Gemini AI models, providing powerful AI-driven assistance for note-taking, writing, and knowledge management directly within Obsidian. It leverages your notes as context for AI interactions, making it a highly personalized and integrated experience.
+Gemini Scribe is an Obsidian plugin that integrates Groq-hosted AI models, providing powerful AI-driven assistance for note-taking, writing, and knowledge management directly within Obsidian. It leverages your notes as context for AI interactions, making it a highly personalized and integrated experience.
 
-> **Note:** This plugin requires a Google Gemini API key. Free tier available at [Google AI Studio](https://aistudio.google.com/apikey).
+> **Note:** This plugin requires a Groq API key. Create one at [Groq Console](https://console.groq.com/keys).
 
 ## What's New in v4.3.1
 
@@ -44,7 +44,7 @@ This release fixes a critical issue for new users:
 - **Image Paste Support:** Paste images directly into the chat input to send them to Gemini for multimodal analysis. Images are automatically saved to your Obsidian attachment folder, displayed as thumbnails before sending, and the AI receives the image path for embedding in notes.
 - **MCP Server Support:** Connect to local [Model Context Protocol](https://modelcontextprotocol.io/) servers to extend the agent with external tools. Configure per-tool trust settings, and MCP tools integrate seamlessly with the existing confirmation flow and loop detection. Desktop only.
 - **Built-in Prompt Templates:** The plugin uses carefully crafted Handlebars templates for system prompts, agent prompts, summarization prompts, selection rewrite prompts, and completion prompts. These ensure consistent and effective AI interaction.
-- **Data Privacy:** All interactions with the Gemini API are done directly from your machine. No data is sent to any third-party servers other than Google's. Agent session history is stored locally in your Obsidian vault as markdown files.
+- **Data Privacy:** All interactions with the Groq API are done directly from your machine. No data is sent to any third-party servers other than Groq. Agent session history is stored locally in your Obsidian vault as markdown files.
 - **Robust Session Management:**
   - Persistent agent sessions that survive restarts
   - Session-specific permissions and settings
@@ -55,7 +55,7 @@ This release fixes a critical issue for new users:
 ## Quick Start
 
 1. Install the plugin from Community Plugins
-2. Get your free API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Get your API key from [Groq Console](https://console.groq.com/keys)
 3. Add the API key in plugin settings
 4. Open Agent Chat with the ribbon icon or command palette
 5. Start using the AI agent to work with your vault!
@@ -77,17 +77,17 @@ This release fixes a critical issue for new users:
 
 ## Configuration
 
-1.  **Obtain a Gemini API Key:**
-    - Visit the [Google AI Studio](https://aistudio.google.com/apikey).
+1.  **Obtain a Groq API Key:**
+    - Visit the [Groq Console](https://console.groq.com/keys).
     - Create a new API key.
 
 2.  **Configure Plugin Settings:**
     - Open Obsidian Settings.
     - Go to "Gemini Scribe" under "Community plugins".
-    - **API Key:** Paste your Gemini API key here.
-    - **Chat Model:** Select the preferred Gemini model for chat interactions (e.g., `gemini-1.5-pro`).
-    - **Summary Model:** Select the preferred Gemini model for generating summaries (e.g., `gemini-1.5-flash`).
-    - **Completion Model:** Select the preferred model for IDE-style completions (e.g., `gemini-1.5-flash-8b`).
+    - **API Key:** Paste your Groq API key here.
+    - **Chat Model:** Select the preferred Groq model for chat interactions (e.g., `compound`).
+    - **Summary Model:** Select the preferred Groq model for generating summaries (e.g., `compound-mini`).
+    - **Completion Model:** Select the preferred model for IDE-style completions (e.g., `llama-3.3-70b-versatile`).
     - **Summary Frontmatter Key:** Specify the key to use when storing summaries in the frontmatter (default: `summary`).
     - **Your Name:** Enter your name, which the AI will use when addressing you.
     - **Chat History:**
@@ -100,7 +100,7 @@ This release fixes a critical issue for new users:
     - **Advanced Settings:** (Click "Show Advanced Settings" to reveal)
       - **Temperature:** Control AI creativity and randomness (0-2.0, automatically adjusted based on available models).
       - **Top P:** Control response diversity and focus (0-1.0).
-      - **Model Discovery:** Automatically fetch and update available Gemini models with their parameter limits.
+      - **Model Discovery:** Automatically fetch and update available Groq models with their parameter limits.
       - **API Configuration:** Configure retry behavior and backoff delays.
       - **Tool Execution:** Control whether to stop agent execution on tool errors.
       - **Tool Loop Detection:** Prevent infinite tool execution loops.
@@ -129,7 +129,7 @@ Let the AI actively work with your vault through tool calling capabilities.
 - **Delete Notes:** Remove notes or folders (with confirmation)
 - **Create Folders:** Organize your vault with new folder structures
 - **List Files:** Browse vault directories and their contents
-- **Web Search:** Search Google for current information (if enabled)
+- **Web Search:** Search the web with Groq compound models (if enabled)
 - **Fetch URLs:** Retrieve and analyze web content
 - **Deep Research:** Conduct comprehensive multi-source research with citations
 
@@ -283,7 +283,7 @@ Create reusable AI instruction templates that customize how the AI behaves for s
 
 ## Troubleshooting
 
-- **API Key Errors:** Ensure your API key is correct and has the necessary permissions. Get a new key at [Google AI Studio](https://aistudio.google.com/apikey).
+- **API Key Errors:** Ensure your API key is correct and has the necessary permissions. Get a new key at [Groq Console](https://console.groq.com/keys).
 - **No Responses:** Check your internet connection and make sure your API key is valid.
 - **Slow Responses:** The speed of responses depends on the Gemini model and the complexity of your request. Larger context windows will take longer.
 - **Completions Not Showing:**

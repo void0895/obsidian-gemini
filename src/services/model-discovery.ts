@@ -10,8 +10,8 @@ export interface GoogleModel {
 	supportedGenerationMethods: string[];
 	baseModelId?: string;
 	maxTemperature?: number;
-	topP?: number; // Default topP value for this model (0-1 range)
-	topK?: number; // Default topK value for this model
+	topP?: number;
+	topK?: number;
 }
 
 export interface ModelDiscoveryResult {
@@ -24,30 +24,21 @@ export interface ModelDiscoveryResult {
 export class ModelDiscoveryService {
 	private plugin: ObsidianGemini;
 	private cache: ModelDiscoveryResult | null = null;
-	private readonly CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-	private readonly API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+	private readonly CACHE_DURATION = 24 * 60 * 60 * 1000;
+	private readonly API_BASE = 'https://api.groq.com/openai/v1';
 
 	constructor(plugin: ObsidianGemini) {
 		this.plugin = plugin;
 	}
 
-	/**
-	 * Discover available models from Google API
-	 */
 	async discoverModels(forceRefresh = false): Promise<ModelDiscoveryResult> {
-		// Check cache first
 		if (!forceRefresh && this.cache && this.isCacheValid()) {
 			return this.cache;
 		}
 
 		try {
 			const models = await this.fetchModelsFromAPI();
-			const result: ModelDiscoveryResult = {
-				models,
-				lastUpdated: Date.now(),
-				success: true,
-			};
-
+			const result: ModelDiscoveryResult = { models, lastUpdated: Date.now(), success: true };
 			this.cache = result;
 			await this.persistCache(result);
 			return result;
@@ -58,139 +49,68 @@ export class ModelDiscoveryService {
 				success: false,
 				error: error instanceof Error ? error.message : 'Unknown error',
 			};
-
-			// Return cached models if available, even if stale
 			return this.cache || result;
 		}
 	}
 
-	/**
-	 * Fetch models from Google API with pagination support and detailed parameter information
-	 */
 	private async fetchModelsFromAPI(): Promise<GoogleModel[]> {
 		const apiKey = this.plugin.settings.apiKey;
 		if (!apiKey) {
 			throw new Error('API key not configured');
 		}
 
-		let allModels: GoogleModel[] = [];
-		let pageToken: string | undefined;
-
-		// First, get the list of models
-		do {
-			const url = new URL(`${this.API_BASE}/models`);
-			url.searchParams.set('key', apiKey);
-			if (pageToken) {
-				url.searchParams.set('pageToken', pageToken);
-			}
-			url.searchParams.set('pageSize', '50'); // Max page size
-
-			const response = await fetch(url.toString());
-			if (!response.ok) {
-				throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-			}
-
-			const data = await response.json();
-			allModels = allModels.concat(data.models || []);
-			pageToken = data.nextPageToken;
-		} while (pageToken);
-
-		const filteredModels = allModels.filter((model) => this.isGenerativeModel(model));
-
-		// Now fetch detailed information for each model to get parameter limits
-		const detailedResults = await Promise.allSettled(
-			filteredModels.map((model) => this.fetchModelDetails(model, apiKey))
-		);
-
-		const detailedModels = detailedResults
-			.filter(
-				(result): result is PromiseFulfilledResult<GoogleModel> =>
-					result.status === 'fulfilled' && result.value !== null
-			)
-			.map((result) => result.value);
-
-		const failedCount = detailedResults.length - detailedModels.length;
-		if (failedCount > 0) {
-			this.plugin.logger.warn(`Failed to fetch detailed information for ${failedCount} models`);
+		const response = await fetch(`${this.API_BASE}/models`, {
+			headers: { Authorization: `Bearer ${apiKey}` },
+		});
+		if (!response.ok) {
+			throw new Error(`API request failed: ${response.status} ${response.statusText}`);
 		}
 
-		return detailedModels;
+		const data = await response.json();
+		const models = (data.data || [])
+			.filter((model: any) => this.isGenerativeModel(model))
+			.map(
+				(model: any) =>
+					({
+						name: model.id,
+						displayName: model.id,
+						description: model.owned_by || 'Groq model',
+						version: 'latest',
+						inputTokenLimit: 131072,
+						outputTokenLimit: 8192,
+						supportedGenerationMethods: ['generateContent'],
+						maxTemperature: 2,
+						topP: 1,
+					}) as GoogleModel
+			);
+
+		return models;
 	}
 
-	/**
-	 * Fetch detailed model information including parameter limits
-	 */
-	private async fetchModelDetails(model: GoogleModel, apiKey: string): Promise<GoogleModel | null> {
-		try {
-			const url = new URL(`${this.API_BASE}/${model.name}`);
-			url.searchParams.set('key', apiKey);
-
-			const response = await fetch(url.toString());
-			if (!response.ok) {
-				this.plugin.logger.warn(`Failed to fetch details for model ${model.name}: ${response.status}`);
-				return model; // Return basic model info if detailed fetch fails
-			}
-
-			const detailedData = await response.json();
-
-			// Merge the detailed information with the basic model data
-			return {
-				...model,
-				maxTemperature: detailedData?.maxTemperature,
-				topP: detailedData?.topP,
-				topK: detailedData?.topK,
-			};
-		} catch (error) {
-			this.plugin.logger.warn(`Error fetching model details for ${model.name}:`, error);
-			return model; // Return basic model info if there's an error
-		}
+	private isGenerativeModel(model: any): boolean {
+		const id = String(model.id || '').toLowerCase();
+		return !!id && !id.includes('whisper') && !id.includes('tts') && !id.includes('vision-preview');
 	}
 
-	/**
-	 * Filter to only generative text models suitable for our use case
-	 */
-	private isGenerativeModel(model: GoogleModel): boolean {
-		return (
-			model.supportedGenerationMethods?.includes('generateContent') &&
-			model.name.includes('gemini') && // Focus on Gemini models
-			!model.name.includes('vision') // Exclude vision-only models for now
-		);
-	}
-
-	/**
-	 * Check if cache is still valid
-	 */
 	private isCacheValid(): boolean {
 		return !!(this.cache && Date.now() - this.cache.lastUpdated < this.CACHE_DURATION);
 	}
 
-	/**
-	 * Persist cache to plugin data
-	 */
 	private async persistCache(result: ModelDiscoveryResult): Promise<void> {
 		const data = (await this.plugin.loadData()) || {};
 		data.modelDiscoveryCache = result;
 		await this.plugin.saveData(data);
 	}
 
-	/**
-	 * Load cache from plugin data
-	 */
 	async loadCache(): Promise<void> {
 		const data = (await this.plugin.loadData()) || {};
 		this.cache = data.modelDiscoveryCache || null;
 	}
 
-	/**
-	 * Clear the cache
-	 */
 	clearCache(): void {
 		this.cache = null;
 	}
 
-	/**
-	 * Get cache status information
-	 */
 	getCacheInfo(): { hasCache: boolean; isValid: boolean; lastUpdated?: number } {
 		return {
 			hasCache: !!this.cache,
