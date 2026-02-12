@@ -1,62 +1,36 @@
 import { Tool, ToolResult, ToolExecutionContext } from './types';
+import { TFile } from 'obsidian';
 import { ToolCategory } from '../types/agent';
 import type ObsidianGemini from '../main';
 import { ResearchScope } from '../services/deep-research';
 
-/**
- * Deep Research Tool that conducts comprehensive research using Google's Deep Research API
- * and generates a well-cited report. Supports vault-only, web-only, or combined research.
- */
 export class DeepResearchTool implements Tool {
 	name = 'deep_research';
 	displayName = 'Deep Research';
 	category = ToolCategory.READ_ONLY;
 	description =
-		"Conduct comprehensive research on a topic using Google's Deep Research model. " +
-		'Can search your vault notes (via RAG), the web, or both. ' +
-		'Generates a well-structured markdown report with citations. ' +
-		'Use scope="vault_only" to synthesize existing notes, ' +
-		'scope="web_only" for internet research, or scope="both" (default) for comprehensive research. ' +
-		'WARNING: This tool may take several minutes to complete as it performs deep analysis.';
+		'Conduct comprehensive research on a topic using a Groq compound model with web search enabled, then generate a structured markdown report.';
 	requiresConfirmation = true;
 
 	parameters = {
 		type: 'object' as const,
 		properties: {
-			topic: {
-				type: 'string' as const,
-				description: 'The research topic or question',
-			},
+			topic: { type: 'string' as const, description: 'The research topic or question' },
 			scope: {
 				type: 'string' as const,
 				enum: ['vault_only', 'web_only', 'both'],
-				description: 'Research scope: vault_only (your notes), web_only (internet), or both (default)',
+				description: 'Research scope hint for the model.',
 			},
-			outputFile: {
-				type: 'string' as const,
-				description: 'Path for the output report file (optional)',
-			},
+			outputFile: { type: 'string' as const, description: 'Path for the output report file (optional)' },
 		},
 		required: ['topic'],
 	};
 
-	confirmationMessage = (params: { topic: string; scope?: ResearchScope }) => {
-		const scopeText =
-			params.scope === 'vault_only'
-				? ' using vault notes only'
-				: params.scope === 'web_only'
-					? ' using web search only'
-					: ' using vault and web';
-		return `Conduct deep research on: "${params.topic}"${scopeText}`;
-	};
+	confirmationMessage = (params: { topic: string; scope?: ResearchScope }) =>
+		`Conduct deep research on: "${params.topic}"${params.scope ? ` (${params.scope})` : ''}`;
 
 	getProgressDescription(params: { topic: string; scope?: ResearchScope }): string {
-		if (params.topic) {
-			const topic = params.topic.length > 25 ? params.topic.substring(0, 22) + '...' : params.topic;
-			const scopeText = params.scope === 'vault_only' ? ' (vault)' : params.scope === 'web_only' ? ' (web)' : '';
-			return `Researching "${topic}"${scopeText}`;
-		}
-		return 'Conducting research';
+		return `Researching "${params.topic?.slice(0, 25) || 'topic'}${(params.topic || '').length > 25 ? '...' : ''}"`;
 	}
 
 	async execute(
@@ -64,49 +38,69 @@ export class DeepResearchTool implements Tool {
 		context: ToolExecutionContext
 	): Promise<ToolResult> {
 		const plugin = context.plugin as InstanceType<typeof ObsidianGemini>;
+		if (typeof params.topic !== 'string' || params.topic.trim().length === 0) {
+			return { success: false, error: 'Topic is required and must be a non-empty string' };
+		}
+		if (!plugin.settings.apiKey) {
+			return { success: false, error: 'Groq API key not configured' };
+		}
 
 		try {
-			// Validate parameters
-			if (!params.topic || typeof params.topic !== 'string' || params.topic.trim().length === 0) {
-				return {
-					success: false,
-					error: 'Topic is required and must be a non-empty string',
-				};
-			}
-
-			// Check if deep research service is available
-			if (!plugin.deepResearch) {
-				return {
-					success: false,
-					error: 'Deep research service not available',
-				};
-			}
-
-			// Ensure .md extension if outputFile is provided
-			let outputFile = params.outputFile;
-			if (outputFile && !outputFile.endsWith('.md')) {
-				outputFile += '.md';
-			}
-
-			// Conduct the research using the service
-			const result = await plugin.deepResearch.conductResearch({
-				topic: params.topic,
-				scope: params.scope,
-				outputFile: outputFile,
+			const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${plugin.settings.apiKey}`,
+				},
+				body: JSON.stringify({
+					model: plugin.settings.chatModelName || 'compound',
+					temperature: 0.2,
+					messages: [
+						{
+							role: 'system',
+							content:
+								'Produce a detailed research report in markdown with clear headings, key findings, and citations/links for claims.',
+						},
+						{
+							role: 'user',
+							content: `Topic: ${params.topic}\nScope: ${params.scope || 'both'}\n\nResearch deeply and produce a report.`,
+						},
+					],
+					tools: [{ type: 'web_search' }],
+					tool_choice: 'auto',
+				}),
 			});
 
-			// Add to context if in agent session and file was created
-			if (context.session && result.outputFile) {
-				context.session.context.contextFiles.push(result.outputFile);
+			if (!response.ok) {
+				return { success: false, error: `Deep research failed: ${response.status} ${await response.text()}` };
+			}
+
+			const result = await response.json();
+			const report = result.choices?.[0]?.message?.content || '';
+			if (!report) {
+				return { success: false, error: 'No report generated' };
+			}
+
+			let outputPath: string | undefined;
+			if (params.outputFile) {
+				const normalized = params.outputFile.endsWith('.md') ? params.outputFile : `${params.outputFile}.md`;
+				await plugin.app.vault.adapter.write(normalized, report);
+				outputPath = normalized;
+				if (context.session) {
+					const createdFile = plugin.app.vault.getAbstractFileByPath(normalized);
+					if (createdFile instanceof TFile) {
+						context.session.context.contextFiles.push(createdFile);
+					}
+				}
 			}
 
 			return {
 				success: true,
 				data: {
-					topic: result.topic,
-					report: result.report,
-					sources: result.sourceCount,
-					outputFile: result.outputFile?.path,
+					topic: params.topic,
+					report,
+					sources: (result.citations || result.x_groq?.citations || []).length,
+					outputFile: outputPath,
 				},
 			};
 		} catch (error) {
@@ -118,9 +112,6 @@ export class DeepResearchTool implements Tool {
 	}
 }
 
-/**
- * Get Deep Research tool
- */
 export function getDeepResearchTool(): Tool {
 	return new DeepResearchTool();
 }

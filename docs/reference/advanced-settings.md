@@ -84,12 +84,13 @@ Configure how the plugin handles API failures:
 
 ### Dynamic Model Discovery
 
-Automatically fetch available models from Google's API:
+Automatically fetch available models from Groq's API:
 
 **Enable Dynamic Model Discovery**
 
 - **Default**: Enabled
-- **Purpose**: Keeps model list current with Google's latest releases
+- **Purpose**: Keeps model list current with Groq's latest model releases
+- **Provider-aware filtering**: Discovery excludes specialized non-chat models (for example embedding/speech) from text model selectors
 - **Updates**: Model parameter limits and availability
 
 **Auto-update Interval**
@@ -176,7 +177,7 @@ In v4.0+, context is manually managed through session-based file selection:
 
 ### API Management
 
-1. **Monitor usage** - Check Google AI Studio for API quota
+1. **Monitor usage** - Check Groq Console for API quota
 2. **Use appropriate models** - Don't use Pro models for simple tasks
 3. **Adjust retry settings** - More retries for unreliable connections
 4. **Enable fallback models** - Ensures continued functionality
@@ -247,7 +248,7 @@ In v4.0+, context is manually managed through session-based file selection:
 
 ### Data Privacy
 
-- **Direct API calls** - Data goes only to Google
+- **Direct API calls** - Data goes only to Groq
 - **Local storage** - Chat history stays in your vault
 - **No third parties** - No intermediate servers involved
 - **Encryption** - Consider vault encryption for sensitive data
